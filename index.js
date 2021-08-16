@@ -239,7 +239,7 @@ module.exports = (function (j2) {
 			this.entry_point = this.entry_point || this.package_name;
 
 			this.output_path = this.output_path || './js'
-			this.closure_path = this.closure_path || './node_modules/gulp-j2/node_modules/google-closure-library/closure/goog';
+			this.closure_path = this.closure_path || './node_modules/google-closure-library/closure/goog';
 			this.develop_path = this.develop_path || path.join(this.output_path, 'develop');
 			this.develop_file = this.develop_file || path.join(this.output_path, `${this.package_name}.dev.js`);
 			this.release_path = this.release_path || this.output_path;
