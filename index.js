@@ -133,7 +133,7 @@ module.exports = (function (j2) {
 			return through2.obj((file, _enc, cb) => {
 				const file_path = path.relative(file.cwd, file.path);
 				if (changed_file && changed_file != file_path) {
-					cb(null);
+					cb(null, file);
 					return;
 				}
 
@@ -323,7 +323,7 @@ document.write('<script>this.${this.PACKAGE_NAME}_BOOT(this);</script>');
 			};
 		};
 
-		Project.prototype.build_develop = function (event, file, stats, cb) {
+		Project.prototype.build_develop = function (event, changed_file, stats, cb) {
 			const {
 				DEVELOP_FILE_HEAD,
 				DEVELOP_FILE_TAIL,
@@ -356,28 +356,36 @@ document.write('<script>this.${this.PACKAGE_NAME}_BOOT(this);</script>');
 						.pipe(deps_proc.preprocess())
 						.on('end', output_dependencies);
 				} else if (event == 'unlink') {
-					if (file.endsWith('.ts')) {
-						const js_path = ts_proc.targets[file];
+					if (changed_file.endsWith('.ts')) {
+						const js_path = ts_proc.targets[changed_file];
 						if (js_path && fs.existsSync(js_path)) {
 							del.sync(js_path);
 						}
 						delete deps_proc.dependencies[js_path];
 						output_dependencies();
-					} else if (file.endsWith('.js')) {
-						delete deps_proc.dependencies[file];
+					} else if (changed_file.endsWith('.js')) {
+						delete deps_proc.dependencies[changed_file];
 						output_dependencies();
 					}
-				} else if (file.endsWith('.ts')) {
+				} else if (changed_file.endsWith('.ts')) {
 					return project.src()
-						.pipe(ts_proc.preprocess(file))
+						.pipe(ts_proc.preprocess(changed_file))
 						.pipe(project()).js
+						.pipe(through2.obj((file, _enc, cb) => {
+							const file_path = path.relative(file.cwd, file.path).replace(/\.[^.]+$/, '.ts');
+							if (changed_file != file_path) {
+								cb(null);
+							} else {
+								cb(null, file);
+							}
+						}))
 						.pipe(ts_proc.generate_goog_provide(false))
 						.pipe(gulp.dest(develop_path))
 						.pipe(ts_proc.record_targets())
 						.pipe(deps_proc.preprocess(null, output_dependencies));
-				} else if (file.endsWith('.js')) {
+				} else if (changed_file.endsWith('.js')) {
 					return gulp.src(js_srcs)
-						.pipe(deps_proc.preprocess(file, output_dependencies));
+						.pipe(deps_proc.preprocess(changed_file, output_dependencies));
 				}
 			};
 		}
