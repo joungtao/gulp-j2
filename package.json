@@ -1,0 +1,38 @@
+{
+  "name": "gulp-j2",
+  "version": "1.0.0",
+  "description": "A gulp plugin for handling typescript compilation with google closure compiler.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joungtao/gulp-j2.git"
+  },
+  "keywords": [
+    "gulp",
+    "typescript",
+    "google-closure-compiler"
+  ],
+  "author": "joungtao",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/joungtao/gulp-j2/issues"
+  },
+  "homepage": "https://github.com/joungtao/gulp-j2#readme",
+  "dependencies": {
+    "browser-sync": "^2.27.5",
+    "del": "^6.0.0",
+    "google-closure-compiler": "^20210601.0.0",
+    "google-closure-deps": "^20210601.0.0",
+    "google-closure-library": "^20210601.0.0",
+    "gulp": "^4.0.2",
+    "gulp-insert": "^0.5.0",
+    "gulp-replace": "^1.1.3",
+    "gulp-typescript": "^6.0.0-alpha.1",
+    "through2": "^4.0.2",
+    "typescript": "^4.3.5",
+    "yargs": "^17.0.1"
+  }
+}
