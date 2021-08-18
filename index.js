@@ -12,8 +12,8 @@ module.exports = (function (j2) {
 	const del = require('del');
 	const path = require('path');
 
-	const merge2 = require('merge2');
-	const through2 = require('through2');
+	const merge = require('merge2');
+	const through = require('through2');
 
 	const browser_sync = require('browser-sync').create();
 
@@ -86,7 +86,7 @@ module.exports = (function (j2) {
 			const {
 				dependencies
 			} = this;
-			return through2.obj((file, _enc, cb) => {
+			return through.obj((file, _enc, cb) => {
 				const file_path = path.relative(file.cwd, file.path);
 				if (!changed_file || changed_file == file_path) {
 					const result = closure_deps.parser.parseFile(file.path);
@@ -121,16 +121,16 @@ module.exports = (function (j2) {
 	const TypeScriptProcessor = (function () {
 		function TypeScriptProcessor() {
 			this.exports = {};
-			this.modules = {};
+			this.provide = {};
 			this.targets = {};
 		}
 
 		TypeScriptProcessor.prototype.preprocess = function (changed_file) {
 			const {
 				exports,
-				modules
+				provide
 			} = this;
-			return through2.obj((file, _enc, cb) => {
+			return through.obj((file, _enc, cb) => {
 				const file_path = path.relative(file.cwd, file.path);
 				if (changed_file && changed_file != file_path) {
 					cb(null, file);
@@ -145,16 +145,19 @@ module.exports = (function (j2) {
 					true
 				);
 				if (exports[file_path]) {
+					for (const name of exports[file_path]) {
+						provide[name] = false;
+					}
 					exports[file_path].length = 0;
-				}
-				if (modules[file_path]) {
-					modules[file_path].length = 0;
 				}
 
 				function report(node, name) {
 					const text = node.name.escapedText;
 					name = name ? name + '.' + text : text;
-					(exports[file_path] = exports[file_path] || []).push(name)
+					if (!provide[name]) {
+						(exports[file_path] = exports[file_path] || []).push(name);
+						provide[name] = true;
+					}
 					return name;
 				}
 
@@ -166,7 +169,6 @@ module.exports = (function (j2) {
 						report(node, name);
 					} else if (exported && ts.isModuleDeclaration(node)) {
 						name = report(node, name);
-						(modules[file_path] = modules[file_path] || []).push(name)
 						ts.forEachChild(node, (node) => {
 							visit(node, name);
 						});
@@ -183,12 +185,16 @@ module.exports = (function (j2) {
 
 		TypeScriptProcessor.prototype.generate_goog_provide = function (need_declare) {
 			const {
-				exports,
-				modules
+				exports
 			} = this;
 			return gulp.insert.transform((contents, file) => {
 				const file_path = path.relative(file.cwd, file.path).replace(/\.[^.]+$/, '.ts');
-				const header_declare = need_declare ? (modules[file_path] || []).map((name) => name.indexOf('.') >= 0 ? '' : `/** @suppress {checkVars} */\nvar ${name} = ${name} || {};\n`).join('') : '';
+				const root_exports = {};
+				for (const name of exports[file_path] || []) {
+					const index = name.indexOf('.');
+					root_exports[index >= 0 ? name.substr(0, index) : name] = true;
+				}
+				const header_declare = need_declare ? Object.keys(root_exports).map((name) => `/** @suppress {checkVars} */\nvar ${name} = ${name} || {};\n`).join('') : '';
 				const header_provide = (exports[file_path] || []).map((name) => `goog.provide('${name}');\n`).join('');
 				if (contents.startsWith(HEADER_STRICT)) {
 					return HEADER_STRICT + HEADER_STRING + header_declare + header_provide + contents.substr(HEADER_STRICT.length);
@@ -201,7 +207,7 @@ module.exports = (function (j2) {
 			const {
 				targets
 			} = this;
-			return through2.obj((file, _enc, cb) => {
+			return through.obj((file, _enc, cb) => {
 				const ts_path = path.relative(file.cwd, file.history[0]).replace(/\.[^.]+$/, '.ts');
 				const js_path = path.relative(file.cwd, file.path);
 				targets[ts_path] = js_path;
@@ -310,7 +316,7 @@ document.write('<script>this.${this.PACKAGE_NAME}_BOOT(this);</script>');
 				js_srcs
 			} = this;
 			return function () {
-				return merge2(
+				return merge(
 						gulp.src(js_srcs.concat(`${closure_path}/**/*.js`))
 						.pipe(gulp.replace(LICENSE_REGEX, '')),
 						project.src()
@@ -371,7 +377,7 @@ document.write('<script>this.${this.PACKAGE_NAME}_BOOT(this);</script>');
 					return project.src()
 						.pipe(ts_proc.preprocess(changed_file))
 						.pipe(project()).js
-						.pipe(through2.obj((file, _enc, cb) => {
+						.pipe(through.obj((file, _enc, cb) => {
 							const file_path = path.relative(file.cwd, file.path).replace(/\.[^.]+$/, '.ts');
 							if (changed_file != file_path) {
 								cb(null);
@@ -420,6 +426,21 @@ document.write('<script>this.${this.PACKAGE_NAME}_BOOT(this);</script>');
 	}());
 
 	j2.Project = Project;
+
+	j2.copy = function (src, dst) {
+		return () => gulp.src(src).pipe(gulp.dest(dst));
+	};
+
+	j2.transpile = function (project, config, js_output, dts_output) {
+		if (typeof project == 'string' || !project) {
+			project = gulp.ts.createProject(project || './tsconfig.json', config || {});
+		}
+		const result = project.src().pipe(project());
+		return () => merge(
+			result.js.pipe(gulp.dest(js_output)),
+			result.dts.pipe(gulp.dest(dts_output || js_output)),
+		);
+	};
 
 	return j2;
 })(j2 || (j2 = {}));
