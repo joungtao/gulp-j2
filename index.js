@@ -396,7 +396,7 @@ document.write('<script>this.${this.PACKAGE_NAME}_BOOT(this);</script>');
 			};
 		}
 
-		Project.prototype.watch_develop = function () {
+		Project.prototype.watch_develop = function (port) {
 			const watch_files = this.js_srcs.concat(this.project.config.include).concat(this.watch_files || []);
 			const build_develop = this.build_develop.bind(this);
 			return gulp.series(
@@ -407,7 +407,7 @@ document.write('<script>this.${this.PACKAGE_NAME}_BOOT(this);</script>');
 							server: {
 								baseDir: './'
 							},
-							port: 5554
+							port: port || 80
 						});
 					},
 					function () {
