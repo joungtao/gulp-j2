@@ -152,7 +152,7 @@ module.exports = (function (j2) {
 				}
 
 				function report(node, name) {
-					const text = node.name.escapedText;
+					const text = node.name.getText(source);
 					name = name ? name + '.' + text : text;
 					if (!provide[name]) {
 						(exports[file_path] = exports[file_path] || []).push(name);
@@ -167,6 +167,10 @@ module.exports = (function (j2) {
 						report(node, name);
 					} else if (exported && name && ts.isFunctionDeclaration(node) && node.name) {
 						report(node, name);
+					} else if (exported && name && ts.isVariableStatement(node)) {
+						for (const vnode of node.declarationList.declarations) {
+							report(vnode, name);
+						}
 					} else if (exported && ts.isModuleDeclaration(node)) {
 						name = report(node, name);
 						ts.forEachChild(node, (node) => {
